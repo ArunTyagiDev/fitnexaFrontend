@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../../lib/api';
+import GymQRGenerator from '../../components/GymQRGenerator';
 import Modal from '../../components/Modal';
 
 export default function OwnerDashboard() {
@@ -13,10 +14,16 @@ export default function OwnerDashboard() {
 	const [showPaymentModal, setShowPaymentModal] = useState(false);
 	const [selectedPaymentType, setSelectedPaymentType] = useState('');
 	const [selectedPaymentData, setSelectedPaymentData] = useState([]);
+	const [processingNotifications, setProcessingNotifications] = useState(new Set());
+	const [fadingNotifications, setFadingNotifications] = useState(new Set());
+	const [toastMessage, setToastMessage] = useState('');
+	const [showGymQRModal, setShowGymQRModal] = useState(false);
+	const [gym, setGym] = useState(null);
 
 	useEffect(() => {
 		loadDashboardData();
 		loadPaymentStatus();
+		loadGymData();
 	}, []);
 
 	async function loadDashboardData() {
@@ -24,9 +31,22 @@ export default function OwnerDashboard() {
 		setData(data);
 	}
 
+	async function loadGymData() {
+		try {
+			const { data } = await api.get('/owner/gyms');
+			if (data && data.length > 0) {
+				setGym(data[0]); // Use first gym
+			}
+		} catch (error) {
+			console.error('Failed to load gym data:', error);
+		}
+	}
+
 	async function loadPaymentStatus() {
 		try {
 			const { data } = await api.get('/owner/payment-status');
+			console.log('Payment status data:', data);
+			console.log('Notifications:', data.notifications);
 			setPaymentStatus(data);
 		} catch (error) {
 			console.error('Failed to load payment status:', error);
@@ -47,11 +67,51 @@ export default function OwnerDashboard() {
 
 	async function markNotificationRead(notificationId) {
 		try {
-			await api.put(`/owner/notifications/${notificationId}/read`);
-			// Reload payment status to get updated notifications
-			loadPaymentStatus();
+			console.log('Marking notification as read:', notificationId);
+			setProcessingNotifications(prev => new Set(prev).add(notificationId));
+			
+			// Start fade out effect
+			setFadingNotifications(prev => new Set(prev).add(notificationId));
+			
+			const response = await api.put(`/owner/notifications/${notificationId}/read`);
+			console.log('Notification marked as read successfully:', response.data);
+			
+			// Wait for fade out animation to complete (500ms)
+			setTimeout(() => {
+				// Optimistically remove the notification from the list
+				setPaymentStatus(prev => ({
+					...prev,
+					notifications: prev.notifications.filter(notif => notif.id !== notificationId)
+				}));
+				
+				// Remove from fading set
+				setFadingNotifications(prev => {
+					const newSet = new Set(prev);
+					newSet.delete(notificationId);
+					return newSet;
+				});
+				
+				// Show success message
+				setToastMessage('Notification marked as read');
+				setTimeout(() => setToastMessage(''), 3000);
+			}, 500);
+			
 		} catch (error) {
 			console.error('Failed to mark notification as read:', error);
+			console.error('Error details:', error.response?.data || error.message);
+			
+			// Remove from fading set on error
+			setFadingNotifications(prev => {
+				const newSet = new Set(prev);
+				newSet.delete(notificationId);
+				return newSet;
+			});
+		} finally {
+			setProcessingNotifications(prev => {
+				const newSet = new Set(prev);
+				newSet.delete(notificationId);
+				return newSet;
+			});
 		}
 	}
 
@@ -59,7 +119,26 @@ export default function OwnerDashboard() {
 
 	return (
 		<div className="p-6 space-y-6">
-			<h1 className="text-2xl font-semibold">Gym Owner Dashboard</h1>
+			{/* Toast Notification */}
+			{toastMessage && (
+				<div className="fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 animate-pulse">
+					{toastMessage}
+				</div>
+			)}
+			<div className="flex justify-between items-center">
+				<h1 className="text-2xl font-semibold">Gym Owner Dashboard</h1>
+				{gym && (
+					<button
+						onClick={() => setShowGymQRModal(true)}
+						className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 cursor-pointer flex items-center gap-2"
+					>
+						<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+						</svg>
+						Gym QR Code
+					</button>
+				)}
+			</div>
 			
 			{/* Stats Cards */}
 			<div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -184,18 +263,30 @@ export default function OwnerDashboard() {
 						</span>
 					</div>
 					<div className="space-y-3">
-						{paymentStatus.notifications.map((notification, index) => (
-							<div key={index} className="bg-orange-50 border border-orange-200 rounded p-3 cursor-pointer hover:bg-orange-100 transition-colors" onClick={() => markNotificationRead(notification.id)}>
-								<div className="font-medium text-orange-900">{notification.title}</div>
-								<div className="text-sm text-orange-700 mt-1">{notification.message}</div>
-								<div className="text-xs text-orange-500 mt-2">
-									{new Date(notification.created_at).toLocaleDateString()}
+						{paymentStatus.notifications.map((notification, index) => {
+							const isProcessing = processingNotifications.has(notification.id);
+							const isFading = fadingNotifications.has(notification.id);
+							return (
+								<div 
+									key={notification.id} 
+									className={`bg-orange-50 border border-orange-200 rounded p-3 cursor-pointer hover:bg-orange-100 transition-all duration-500 ${
+										isProcessing ? 'opacity-50 cursor-not-allowed' : ''
+									} ${
+										isFading ? 'opacity-0 transform scale-95' : 'opacity-100 transform scale-100'
+									}`} 
+									onClick={() => !isProcessing && !isFading && markNotificationRead(notification.id)}
+								>
+									<div className="font-medium text-orange-900">{notification.title}</div>
+									<div className="text-sm text-orange-700 mt-1">{notification.message}</div>
+									<div className="text-xs text-orange-500 mt-2">
+										{new Date(notification.created_at).toLocaleDateString()}
+									</div>
+									<div className="text-xs text-orange-600 mt-1 cursor-pointer hover:underline">
+										{isProcessing ? 'Processing...' : isFading ? 'Marked as read' : 'Click to mark as read'}
+									</div>
 								</div>
-								<div className="text-xs text-orange-600 mt-1 cursor-pointer hover:underline">
-									Click to mark as read
-								</div>
-							</div>
-						))}
+							);
+						})}
 					</div>
 				</div>
 			)}
@@ -304,6 +395,13 @@ export default function OwnerDashboard() {
 					)}
 				</div>
 			</Modal>
+
+			{/* Gym QR Generator Modal */}
+			<GymQRGenerator
+				isOpen={showGymQRModal}
+				gym={gym}
+				onClose={() => setShowGymQRModal(false)}
+			/>
 		</div>
 	);
 }

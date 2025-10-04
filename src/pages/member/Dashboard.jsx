@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import api from '../../lib/api';
+import GymQRScanner from '../../components/GymQRScanner';
 
 export default function MemberDashboard() {
 	const [data, setData] = useState(null);
 	const [loading, setLoading] = useState(false);
 	const [message, setMessage] = useState('');
+	const [showGymScanner, setShowGymScanner] = useState(false);
 
 	useEffect(() => {
 		loadDashboardData();
@@ -35,13 +37,85 @@ export default function MemberDashboard() {
 		}
 	}
 
+	async function handleGymScan(scanData) {
+		setLoading(true);
+		try {
+			console.log('Sending attendance data:', {
+				gym_id: scanData.gymId,
+				location: scanData.location
+			});
+			
+			const { data } = await api.post('/member/attendance', {
+				gym_id: scanData.gymId,
+				location: scanData.location
+			});
+			
+			console.log('Attendance response:', data);
+			setMessage(data.message);
+			await loadDashboardData();
+			setTimeout(() => setMessage(''), 3000);
+		} catch (error) {
+			console.error('Attendance error:', error);
+			console.error('Error response:', error.response?.data);
+			setMessage(error.response?.data?.message || 'Failed to mark attendance');
+			setTimeout(() => setMessage(''), 3000);
+		} finally {
+			setLoading(false);
+		}
+	}
+
 	if (!data) return <div className="p-6">Loading...</div>;
 	
 	const { membership, diet, paymentReminders, todayAttendance, recentAttendance } = data;
 
 	return (
 		<div className="p-6 space-y-6">
-			<h1 className="text-2xl font-semibold">Member Dashboard</h1>
+			<div className="flex justify-between items-center">
+				<h1 className="text-2xl font-semibold">Member Dashboard</h1>
+				<a
+					href="/member/qr-code"
+					className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 cursor-pointer flex items-center gap-2"
+				>
+					<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+					</svg>
+					Payment QR Code
+				</a>
+				<button
+					onClick={() => setShowGymScanner(true)}
+					className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 cursor-pointer flex items-center gap-2"
+				>
+					<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+						<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+					</svg>
+					Scan Gym QR
+				</button>
+			</div>
+
+			{/* Quick QR Code Access */}
+			<div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg p-6">
+				<div className="flex items-center justify-between">
+					<div>
+						<h2 className="text-lg font-semibold text-green-800 mb-2">Quick Payment Access</h2>
+						<p className="text-green-700 mb-4">Show your QR code to the gym owner for easy payment processing</p>
+						<a
+							href="/member/qr-code"
+							className="inline-flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition-colors"
+						>
+							<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+							</svg>
+							Show QR Code
+						</a>
+					</div>
+					<div className="text-green-600">
+						<svg className="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+						</svg>
+					</div>
+				</div>
+			</div>
 
 			{/* Payment Reminders */}
 			{paymentReminders && paymentReminders.length > 0 && (
@@ -204,6 +278,13 @@ export default function MemberDashboard() {
 					{message}
 				</div>
 			)}
+
+			{/* Gym QR Scanner Modal */}
+			<GymQRScanner
+				isOpen={showGymScanner}
+				onScan={handleGymScan}
+				onClose={() => setShowGymScanner(false)}
+			/>
 		</div>
 	);
 }

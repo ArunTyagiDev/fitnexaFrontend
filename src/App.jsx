@@ -25,6 +25,7 @@ import MemberDashboard from './pages/member/Dashboard';
 import Profile from './pages/member/Profile';
 import Progress from './pages/member/Progress';
 import Feed from './pages/member/Feed';
+import QRCodePage from './pages/member/QRCode';
 import './index.css';
 
 function HomeRedirect() {
@@ -71,6 +72,7 @@ export default function App() {
 						<Route path="/member/profile" element={<Layout><Profile /></Layout>} />
 						<Route path="/member/progress" element={<Layout><Progress /></Layout>} />
 						<Route path="/member/feed" element={<Layout><Feed /></Layout>} />
+						<Route path="/member/qr-code" element={<Layout><QRCodePage /></Layout>} />
 					</Route>
 				</Routes>
 			</BrowserRouter>

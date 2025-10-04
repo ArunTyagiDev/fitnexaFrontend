@@ -24,6 +24,7 @@ export default function Layout({ children }) {
 							<Link className="text-gray-700 hover:text-gray-900" to="/member">Dashboard</Link>
 							<Link className="text-gray-700 hover:text-gray-900" to="/member/profile">Profile</Link>
 							<Link className="text-gray-700 hover:text-gray-900" to="/member/progress">Progress</Link>
+							<Link className="text-gray-700 hover:text-gray-900" to="/member/qr-code">QR Code</Link>
 						</>}
 						<button className="ml-4 text-red-600 hover:text-red-700" onClick={logout}>Logout</button>
 					</div>

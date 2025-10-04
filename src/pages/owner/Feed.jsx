@@ -8,15 +8,15 @@ export default function Feed() {
 	const [newPost, setNewPost] = useState({ content: '', image: null, visibility: 'public' });
 	const [submitting, setSubmitting] = useState(false);
 	const [message, setMessage] = useState('');
-	const [showCommentsModal, setShowCommentsModal] = useState(false);
-	const [selectedPost, setSelectedPost] = useState(null);
-	const [comments, setComments] = useState([]);
+	const [expandedComments, setExpandedComments] = useState(new Set());
+	const [postComments, setPostComments] = useState({});
 	const [newComment, setNewComment] = useState('');
 	const [replyingTo, setReplyingTo] = useState(null);
 	const [replyText, setReplyText] = useState('');
 	const [showShareModal, setShowShareModal] = useState(false);
 	const [shareMessage, setShareMessage] = useState('');
 	const [sharing, setSharing] = useState(false);
+	const [selectedPost, setSelectedPost] = useState(null);
 
 	useEffect(() => {
 		loadFeed();
@@ -94,49 +94,63 @@ export default function Feed() {
 		}
 	}
 
-	async function openCommentsModal(post) {
-		setSelectedPost(post);
-		setShowCommentsModal(true);
-		await loadComments(post.id);
+	async function toggleComments(postId) {
+		const isExpanded = expandedComments.has(postId);
+		
+		if (isExpanded) {
+			// Collapse comments
+			setExpandedComments(prev => {
+				const newSet = new Set(prev);
+				newSet.delete(postId);
+				return newSet;
+			});
+		} else {
+			// Expand comments
+			setExpandedComments(prev => new Set(prev).add(postId));
+			await loadComments(postId);
+		}
 	}
 
 	async function loadComments(postId) {
 		try {
 			const { data } = await api.get(`/owner/posts/${postId}/comments`);
-			setComments(data);
+			setPostComments(prev => ({
+				...prev,
+				[postId]: data
+			}));
 		} catch (error) {
 			console.error('Failed to load comments:', error);
 		}
 	}
 
-	async function addComment(e) {
+	async function addComment(e, postId) {
 		e.preventDefault();
 		if (!newComment.trim()) return;
 
 		try {
-			await api.post(`/owner/posts/${selectedPost.id}/comments`, {
+			await api.post(`/owner/posts/${postId}/comments`, {
 				content: newComment.trim()
 			});
 			setNewComment('');
-			await loadComments(selectedPost.id);
+			await loadComments(postId);
 			await loadFeed(); // Update post comment count
 		} catch (error) {
 			console.error('Failed to add comment:', error);
 		}
 	}
 
-	async function addReply(e, parentCommentId) {
+	async function addReply(e, parentCommentId, postId) {
 		e.preventDefault();
 		if (!replyText.trim()) return;
 
 		try {
-			await api.post(`/owner/posts/${selectedPost.id}/comments`, {
+			await api.post(`/owner/posts/${postId}/comments`, {
 				content: replyText.trim(),
 				parent_id: parentCommentId
 			});
 			setReplyText('');
 			setReplyingTo(null);
-			await loadComments(selectedPost.id);
+			await loadComments(postId);
 		} catch (error) {
 			console.error('Failed to add reply:', error);
 		}
@@ -478,6 +492,44 @@ export default function Feed() {
 											<p className="text-gray-900 whitespace-pre-wrap">{post.content}</p>
 										</div>
 
+										{/* Shared Post Content */}
+										{post.shares && post.shares.length > 0 && post.shares[0].originalPost && (
+											<div className="mx-4 mb-3 border border-gray-200 rounded-lg bg-gray-50">
+												{/* Original Post Header */}
+												<div className="p-3 border-b border-gray-200">
+													<div className="flex items-center space-x-2">
+														<div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-semibold">
+															{post.shares[0].originalPost.user?.name?.charAt(0) || 'U'}
+														</div>
+														<div>
+															<span className="font-semibold text-sm">{post.shares[0].originalPost.user?.name || 'Unknown User'}</span>
+															<span className="text-xs text-gray-500 ml-2">{formatTimeAgo(post.shares[0].originalPost.created_at)}</span>
+														</div>
+													</div>
+												</div>
+												
+												{/* Original Post Content */}
+												<div className="p-3">
+													<p className="text-sm text-gray-900 whitespace-pre-wrap">{post.shares[0].originalPost.content}</p>
+													
+													{/* Original Post Image */}
+													{post.shares[0].originalPost.image_path && (
+														<div className="mt-3">
+															<img
+																src={`http://localhost:8000/storage/${post.shares[0].originalPost.image_path}`}
+																alt="Original post image"
+																className="w-full max-h-64 object-cover rounded"
+																onError={(e) => {
+																	console.error('Image load error:', e);
+																	e.target.style.display = 'none';
+																}}
+															/>
+														</div>
+													)}
+												</div>
+											</div>
+										)}
+
 										{/* Post Image */}
 										{post.image_path && (
 											<div className="px-4 pb-3">
@@ -509,7 +561,7 @@ export default function Feed() {
 												</button>
 												
 												<button 
-													onClick={() => openCommentsModal(post)}
+													onClick={() => toggleComments(post.id)}
 													className="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors text-gray-500"
 												>
 													<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -529,6 +581,117 @@ export default function Feed() {
 												</button>
 											</div>
 										</div>
+
+										{/* Inline Comments Section */}
+										{expandedComments.has(post.id) && (
+											<div className="border-t border-gray-100">
+												{/* Comments List */}
+												<div className="px-4 py-3 max-h-96 overflow-y-auto">
+													{postComments[post.id] && postComments[post.id].length > 0 ? (
+														<div className="space-y-3">
+															{postComments[post.id].map(comment => (
+																<div key={comment.id} className="space-y-3">
+																	{/* Main Comment */}
+																	<div className="flex space-x-3">
+																		<div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-semibold">
+																			{comment.user?.name?.charAt(0) || 'U'}
+																		</div>
+																		<div className="flex-1">
+																			<div className="bg-gray-100 rounded-lg p-3">
+																				<div className="flex items-center space-x-2 mb-1">
+																					<span className="font-semibold text-sm">{comment.user?.name || 'Unknown User'}</span>
+																					<span className="text-xs text-gray-500">{formatTimeAgo(comment.created_at)}</span>
+																				</div>
+																				<p className="text-sm text-gray-900">{comment.content}</p>
+																				<button
+																					onClick={() => startReply(comment.id)}
+																					className="text-xs text-blue-600 hover:underline mt-2 cursor-pointer"
+																				>
+																					Reply
+																				</button>
+																			</div>
+
+																			{/* Reply Form */}
+																			{replyingTo === comment.id && (
+																				<form onSubmit={(e) => addReply(e, comment.id, post.id)} className="mt-2">
+																					<div className="flex space-x-2">
+																						<input
+																							type="text"
+																							value={replyText}
+																							onChange={(e) => setReplyText(e.target.value)}
+																							placeholder="Write a reply..."
+																							className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+																						/>
+																						<button
+																							type="submit"
+																							className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+																						>
+																							Reply
+																						</button>
+																						<button
+																							type="button"
+																							onClick={cancelReply}
+																							className="px-3 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 text-sm"
+																						>
+																							Cancel
+																						</button>
+																					</div>
+																				</form>
+																			)}
+
+																			{/* Replies Display */}
+																			{comment.replies && comment.replies.length > 0 && (
+																				<div className="ml-4 mt-3 space-y-2">
+																					{comment.replies.map(reply => (
+																						<div key={reply.id} className="flex space-x-2">
+																							<div className="w-6 h-6 bg-green-600 rounded-full flex items-center justify-center text-white text-xs font-semibold">
+																								{reply.user?.name?.charAt(0) || 'U'}
+																							</div>
+																							<div className="flex-1">
+																								<div className="bg-gray-50 rounded-lg p-2">
+																									<div className="flex items-center space-x-2 mb-1">
+																										<span className="font-semibold text-xs">{reply.user?.name || 'Unknown User'}</span>
+																										<span className="text-xs text-gray-500">{formatTimeAgo(reply.created_at)}</span>
+																									</div>
+																									<p className="text-xs text-gray-900">{reply.content}</p>
+																								</div>
+																							</div>
+																						</div>
+																					))}
+																				</div>
+																			)}
+																		</div>
+																	</div>
+																</div>
+															))}
+														</div>
+													) : (
+														<div className="text-center text-gray-500 py-4">
+															No comments yet. Be the first to comment!
+														</div>
+													)}
+												</div>
+
+												{/* Add Comment Form */}
+												<div className="px-4 py-3 border-t border-gray-100">
+													<form onSubmit={(e) => addComment(e, post.id)} className="flex space-x-2">
+														<input
+															type="text"
+															value={newComment}
+															onChange={(e) => setNewComment(e.target.value)}
+															placeholder="Write a comment..."
+															className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+														/>
+														<button
+															type="submit"
+															className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+														>
+															Comment
+														</button>
+													</form>
+												</div>
+											</div>
+										)}
 									</div>
 								))
 							)}
@@ -658,147 +821,6 @@ export default function Feed() {
 				</div>
 			</div>
 
-			{/* Comments Modal */}
-			{showCommentsModal && selectedPost && (
-				<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-					<div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] flex flex-col">
-						<div className="p-6 border-b">
-							<div className="flex justify-between items-center">
-								<h2 className="text-xl font-semibold">Comments</h2>
-								<button
-									onClick={() => {
-										setShowCommentsModal(false);
-										setSelectedPost(null);
-										setComments([]);
-										setReplyingTo(null);
-									}}
-									className="text-gray-500 hover:text-gray-700 cursor-pointer"
-								>
-									<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-									</svg>
-								</button>
-							</div>
-						</div>
-						
-						{/* Comments List */}
-						<div className="flex-1 overflow-y-auto p-6 space-y-4">
-							{comments.length === 0 ? (
-								<div className="text-center text-gray-500 py-8">
-									No comments yet. Be the first to comment!
-								</div>
-							) : (
-								comments.map(comment => (
-									<div key={comment.id} className="space-y-3">
-										{/* Main Comment */}
-										<div className="flex space-x-3">
-											<div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-semibold">
-												{comment.user?.name?.charAt(0) || 'U'}
-											</div>
-											<div className="flex-1">
-												<div className="bg-gray-100 rounded-lg p-3">
-													<div className="flex items-center space-x-2 mb-1">
-														<span className="font-semibold text-sm">{comment.user?.name || 'Unknown User'}</span>
-														<span className="text-xs text-gray-500">{formatTimeAgo(comment.created_at)}</span>
-													</div>
-													<p className="text-sm text-gray-900">{comment.content}</p>
-													<button
-														onClick={() => startReply(comment.id)}
-														className="text-xs text-blue-600 hover:underline mt-2 cursor-pointer"
-													>
-														Reply
-													</button>
-												</div>
-
-												{/* Reply Form */}
-												{replyingTo === comment.id && (
-													<form onSubmit={(e) => addReply(e, comment.id)} className="mt-2">
-														<div className="flex space-x-2">
-															<input
-																type="text"
-																value={replyText}
-																onChange={e => setReplyText(e.target.value)}
-																placeholder="Write a reply..."
-																className="flex-1 border rounded-lg px-3 py-2 text-sm"
-																autoFocus
-															/>
-															<button
-																type="submit"
-																disabled={!replyText.trim()}
-																className="bg-blue-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-blue-700 cursor-pointer disabled:opacity-50"
-															>
-																Reply
-															</button>
-															<button
-																type="button"
-																onClick={cancelReply}
-																className="bg-gray-300 text-gray-700 px-3 py-2 rounded-lg text-sm hover:bg-gray-400 cursor-pointer"
-															>
-																Cancel
-															</button>
-														</div>
-													</form>
-												)}
-
-												{/* Replies */}
-												{comment.replies && comment.replies.length > 0 && (
-													<div className="ml-4 mt-2 space-y-2">
-														{comment.replies.map(reply => (
-															<div key={reply.id} className="flex space-x-2">
-																<div className="w-6 h-6 bg-green-600 rounded-full flex items-center justify-center text-white text-xs font-semibold">
-																	{reply.user?.name?.charAt(0) || 'U'}
-																</div>
-																<div className="flex-1">
-																	<div className="bg-gray-50 rounded-lg p-2">
-																		<div className="flex items-center space-x-2 mb-1">
-																			<span className="font-semibold text-xs">{reply.user?.name || 'Unknown User'}</span>
-																			<span className="text-xs text-gray-500">{formatTimeAgo(reply.created_at)}</span>
-																		</div>
-																		<p className="text-xs text-gray-900">{reply.content}</p>
-																		<button
-																			onClick={() => startReply(reply.id)}
-																			className="text-xs text-blue-600 hover:underline mt-1 cursor-pointer"
-																		>
-																			Reply
-																		</button>
-																	</div>
-																</div>
-															</div>
-														))}
-													</div>
-												)}
-											</div>
-										</div>
-									</div>
-								))
-							)}
-						</div>
-
-						{/* Add Comment Form */}
-						<div className="p-6 border-t">
-							<form onSubmit={addComment} className="flex space-x-3">
-								<div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-semibold">
-									U
-								</div>
-								<input
-									type="text"
-									value={newComment}
-									onChange={e => setNewComment(e.target.value)}
-									placeholder="Write a comment..."
-									className="flex-1 border rounded-lg px-3 py-2"
-								/>
-								<button
-									type="submit"
-									disabled={!newComment.trim()}
-									className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 cursor-pointer disabled:opacity-50"
-								>
-									Comment
-								</button>
-							</form>
-						</div>
-					</div>
-				</div>
-			)}
 
 			{/* Share Modal */}
 			{showShareModal && selectedPost && (

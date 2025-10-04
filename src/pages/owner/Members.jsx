@@ -1,13 +1,18 @@
 import { useEffect, useState } from 'react';
 import api from '../../lib/api';
 import Modal from '../../components/Modal';
+import QRScanner from '../../components/QRScanner';
+import QRCodeGenerator from '../../components/QRCodeGenerator';
+import PaymentForm from '../../components/PaymentForm';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts';
 	
 export default function Members() {
 	const [members, setMembers] = useState(null);
 	const [packages, setPackages] = useState([]);
 	const [error, setError] = useState('');
+	const [successMessage, setSuccessMessage] = useState('');
 	const [selectedMember, setSelectedMember] = useState(null);
+	const [searchTerm, setSearchTerm] = useState('');
 	const [memberHistory, setMemberHistory] = useState(null);
 	const [showHistoryModal, setShowHistoryModal] = useState(false);
 
@@ -34,6 +39,19 @@ export default function Members() {
 		thighs_cm: ''
 	});
 
+	// Upgrade package states
+	const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+	const [selectedMemberForUpgrade, setSelectedMemberForUpgrade] = useState(null);
+	const [selectedUpgradePackage, setSelectedUpgradePackage] = useState('');
+	const [upgradeCalculations, setUpgradeCalculations] = useState(null);
+
+	// QR Scanner states
+	const [showQRScanner, setShowQRScanner] = useState(false);
+	const [showQRGenerator, setShowQRGenerator] = useState(false);
+	const [showPaymentForm, setShowPaymentForm] = useState(false);
+	const [scannedMember, setScannedMember] = useState(null);
+	const [selectedMemberForQR, setSelectedMemberForQR] = useState(null);
+
 	async function load() {
 		const [{ data: membersData }, { data: packagesData }] = await Promise.all([
 			api.get('/owner/members'),
@@ -41,6 +59,12 @@ export default function Members() {
 		]);
 		setMembers(membersData);
 		setPackages(packagesData);
+		
+		// Debug package data
+		console.log('Packages loaded:', packagesData);
+		if (packagesData && packagesData.length > 0) {
+			console.log('First package structure:', packagesData[0]);
+		}
 	}
 
 	useEffect(() => { 
@@ -76,9 +100,23 @@ export default function Members() {
 
 	function setField(k, v) { setForm(prev => ({ ...prev, [k]: v })); }
 
+	// Filter members based on search term
+	function getFilteredMembers() {
+		if (!members?.data) return [];
+		if (!searchTerm.trim()) return members.data;
+		
+		const term = searchTerm.toLowerCase();
+		return members.data.filter(member => 
+			member.user.name.toLowerCase().includes(term) ||
+			(member.user.email && member.user.email.toLowerCase().includes(term)) ||
+			member.user.phone.toLowerCase().includes(term)
+		);
+	}
+
 	async function addMember(e) {
 		e?.preventDefault?.();
 		setError('');
+		setSuccessMessage('');
 		try {
 			await api.post('/owner/members', { 
 				name: form.name, 
@@ -92,6 +130,8 @@ export default function Members() {
 				start_date: form.start_date,
 			});
 			setShowCreateModal(false);
+			setSuccessMessage(`Member ${form.name} added successfully! Welcome email has been sent.`);
+			setTimeout(() => setSuccessMessage(''), 5000);
 			await load();
 		} catch (err) {
 			setError(err?.response?.data?.message || 'Failed to add');
@@ -124,6 +164,158 @@ export default function Members() {
 			setError('Failed to load progress data');
 		}
 		setShowProgressModal(true);
+	}
+
+	// Upgrade package functions
+	function openUpgradeModal(member) {
+		setSelectedMemberForUpgrade(member);
+		setSelectedUpgradePackage('');
+		setUpgradeCalculations(null);
+		setShowUpgradeModal(true);
+	}
+
+	function calculateUpgrade() {
+		if (!selectedMemberForUpgrade || !selectedUpgradePackage) return;
+
+		const currentPackage = selectedMemberForUpgrade.package;
+		const newPackage = packages.find(p => p.id == selectedUpgradePackage);
+		
+		if (!newPackage) return;
+
+		console.log('Current Package:', currentPackage);
+		console.log('New Package:', newPackage);
+
+		const currentStartDate = new Date(selectedMemberForUpgrade.start_date);
+		const currentEndDate = new Date(selectedMemberForUpgrade.end_date);
+		const today = new Date();
+		
+		// Calculate remaining days in current package
+		const remainingDays = Math.max(0, Math.ceil((currentEndDate - today) / (1000 * 60 * 60 * 24)));
+		
+		// Calculate refund amount (proportional to remaining days)
+		// Ensure we have valid fee and duration values
+		const currentFee = parseFloat(currentPackage?.price || currentPackage?.fee || 0);
+		const currentDuration = parseInt(currentPackage?.duration_days || (currentPackage?.duration_months ? currentPackage.duration_months * 30 : 30) || 30);
+		const currentDailyRate = currentDuration > 0 ? (currentFee / currentDuration) : 0;
+		const refundAmount = remainingDays * currentDailyRate;
+		
+		console.log('Refund Calculation Debug:', {
+			currentFee,
+			currentDuration,
+			currentDailyRate: currentDailyRate.toFixed(2),
+			remainingDays,
+			refundAmount: refundAmount.toFixed(2),
+			'Expected for ₹25000/365 days': (25000/365).toFixed(2)
+		});
+		
+		// Calculate new package cost
+		const newPackageCost = parseFloat(newPackage.price || newPackage.fee || 0);
+		
+		// Calculate amount to pay (new package cost - refund)
+		const amountToPay = Math.max(0, newPackageCost - refundAmount);
+		
+		// Calculate new end date
+		const newDuration = parseInt(newPackage.duration_days || (newPackage.duration_months ? newPackage.duration_months * 30 : 30) || 30);
+		const newEndDate = new Date(today);
+		newEndDate.setDate(newEndDate.getDate() + newDuration);
+
+		console.log('Calculation Details:', {
+			currentFee,
+			currentDuration,
+			currentDailyRate,
+			remainingDays,
+			refundAmount,
+			newPackageCost,
+			amountToPay,
+			calculationBreakdown: {
+				'Current Package Fee': currentFee,
+				'Current Package Duration': currentDuration,
+				'Daily Rate': currentDailyRate,
+				'Remaining Days': remainingDays,
+				'Refund Amount': refundAmount,
+				'New Package Cost': newPackageCost,
+				'Amount to Pay (New Cost - Refund)': `${newPackageCost} - ${refundAmount} = ${amountToPay}`
+			}
+		});
+
+		setUpgradeCalculations({
+			currentPackage: currentPackage?.name || 'No Package',
+			newPackage: newPackage.name,
+			remainingDays,
+			refundAmount: Math.round(refundAmount * 100) / 100,
+			newPackageCost,
+			amountToPay: Math.round(amountToPay * 100) / 100,
+			newEndDate: newEndDate.toISOString().split('T')[0]
+		});
+	}
+
+	async function upgradePackage() {
+		if (!selectedMemberForUpgrade || !selectedUpgradePackage || !upgradeCalculations) return;
+
+		try {
+			await api.put(`/owner/memberships/${selectedMemberForUpgrade.id}/upgrade`, {
+				package_id: selectedUpgradePackage,
+				amount_paid: upgradeCalculations.amountToPay
+			});
+			
+			setShowUpgradeModal(false);
+			setSuccessMessage(`Package upgraded successfully for ${selectedMemberForUpgrade.user.name}!`);
+			setTimeout(() => setSuccessMessage(''), 5000);
+			await load();
+		} catch (error) {
+			setError(error?.response?.data?.message || 'Failed to upgrade package');
+		}
+	}
+
+	// QR Scanner functions
+	function handleQRScan(qrData) {
+		try {
+			const memberData = JSON.parse(qrData);
+			if (memberData.type === 'member_payment' && memberData.memberId) {
+				setScannedMember({
+					memberId: memberData.memberId,
+					memberName: memberData.memberName
+				});
+				setShowQRScanner(false);
+				setShowPaymentForm(true);
+			} else {
+				setError('Invalid QR code. Please scan a member QR code.');
+			}
+		} catch (err) {
+			setError('Invalid QR code format. Please scan a valid member QR code.');
+		}
+	}
+
+	async function processPayment(paymentData) {
+		try {
+			// Find the member's membership
+			const member = members.data.find(m => m.user.id == paymentData.member_id);
+			if (!member) {
+				throw new Error('Member not found');
+			}
+
+			await api.post('/owner/payments', {
+				membership_id: member.id,
+				amount: paymentData.amount,
+				payment_method: paymentData.payment_method,
+				status: paymentData.status,
+				description: paymentData.description || `Payment via QR scan for ${paymentData.member_name}`,
+				paid_at: new Date().toISOString()
+			});
+
+			setShowPaymentForm(false);
+			setScannedMember(null);
+			setSuccessMessage(`Payment of ₹${paymentData.amount} processed successfully for ${paymentData.member_name}!`);
+			setTimeout(() => setSuccessMessage(''), 5000);
+			await load();
+		} catch (error) {
+			throw new Error(error?.response?.data?.message || 'Failed to process payment');
+		}
+	}
+
+	function generateQRForMember(member) {
+		setSelectedMemberForQR(member);
+		setShowQRGenerator(true);
 	}
 
 	function closeProgressModal() {
@@ -210,85 +402,154 @@ export default function Members() {
 			<div className="flex items-center justify-between">
 				<h1 className="text-xl font-semibold">Members</h1>
 				<div className="flex items-center gap-3">
+					<button 
+						onClick={() => setShowQRScanner(true)} 
+						className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 cursor-pointer flex items-center gap-2"
+					>
+						<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+						</svg>
+						Scan QR
+					</button>
 					<button onClick={openCreate} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 cursor-pointer">Add Member</button>
 				</div>
 			</div>
 
+			{/* Search Bar */}
+			<div className="mb-4">
+				<div className="relative">
+					<input
+						type="text"
+						placeholder="Search members by name, email, or phone..."
+						value={searchTerm}
+						onChange={(e) => setSearchTerm(e.target.value)}
+						className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+					/>
+					<div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+						<svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+						</svg>
+					</div>
+					{searchTerm && (
+						<button
+							onClick={() => setSearchTerm('')}
+							className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+						>
+							<svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+							</svg>
+						</button>
+					)}
+				</div>
+			</div>
+
 			{error && <div className="text-red-600 text-sm">{error}</div>}
+			{successMessage && <div className="text-green-600 text-sm bg-green-50 p-3 rounded border border-green-200">{successMessage}</div>}
 
 			<div className="bg-white rounded shadow">
-				<table className="w-full text-sm">
-					<thead>
-						<tr className="bg-gray-50 text-left">
-							<th className="p-2">Name</th>
-							<th className="p-2">Email</th>
-							<th className="p-2">Phone</th>
-							<th className="p-2">Package</th>
-							<th className="p-2">Status</th>
-							<th className="p-2">Start Date</th>
-							<th className="p-2">End Date</th>
-							<th className="p-2">Actions</th>
-						</tr>
-					</thead>
-					<tbody>
-						{members?.data?.map(m => (
-							<tr key={m.id} className="border-t hover:bg-gray-50">
-								<td className="p-2 font-medium">{m.user?.name}</td>
-								<td className="p-2">{m.user?.email || '-'}</td>
-								<td className="p-2">{m.user?.phone || '-'}</td>
-								<td className="p-2">{m.package?.name || 'No Package'}</td>
-								<td className="p-2">
-									<span className={`px-2 py-1 rounded text-xs ${
-										m.status === 'active' ? 'bg-green-100 text-green-800' :
-										m.status === 'expired' ? 'bg-red-100 text-red-800' :
-										'bg-yellow-100 text-yellow-800'
-									}` }>
-										{m.status}
-									</span>
-								</td>
-								<td className="p-2">{m.start_date}</td>
-								<td className="p-2">{m.end_date}</td>
-								<td className="p-2">
-									<div className="flex items-center gap-2">
-										<button
-											onClick={() => viewMemberHistory(m)}
-											className="text-blue-600 hover:text-blue-800 p-1 rounded hover:bg-blue-50 cursor-pointer"
-											title="View Member History"
-										>
-											<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-												<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-											</svg>
-										</button>
-										<button
-											onClick={() => openProgressModal(m)}
-											className="text-green-600 hover:text-green-800 p-1 rounded hover:bg-green-50 cursor-pointer"
-											title="Progress Report"
-										>
-											<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-											</svg>
-										</button>
-										{m.status === 'active' && (
+				{/* Table Header - Fixed */}
+				<div className="bg-gray-50 px-4 py-3 border-b">
+					<div className="grid grid-cols-8 gap-4 text-sm font-medium text-gray-700">
+						<div>Name</div>
+						<div>Email</div>
+						<div>Phone</div>
+						<div>Package</div>
+						<div>Status</div>
+						<div>Start Date</div>
+						<div>End Date</div>
+						<div>Actions</div>
+					</div>
+				</div>
+
+				{/* Table Body - Scrollable */}
+				<div className="max-h-96 overflow-y-auto">
+					{getFilteredMembers().length > 0 ? (
+						getFilteredMembers().map(m => (
+							<div key={m.id} className="border-b hover:bg-gray-50 px-4 py-3">
+								<div className="grid grid-cols-8 gap-4 text-sm items-center">
+									<div className="font-medium">{m.user?.name}</div>
+									<div className="text-gray-600">{m.user?.email || '-'}</div>
+									<div className="text-gray-600">{m.user?.phone || '-'}</div>
+									<div className="text-gray-600">{m.package?.name || 'No Package'}</div>
+									<div>
+										<span className={`px-2 py-1 rounded text-xs ${
+											m.status === 'active' ? 'bg-green-100 text-green-800' :
+											m.status === 'expired' ? 'bg-red-100 text-red-800' :
+											'bg-yellow-100 text-yellow-800'
+										}`}>
+											{m.status}
+										</span>
+									</div>
+									<div className="text-gray-600">{m.start_date}</div>
+									<div className="text-gray-600">{m.end_date}</div>
+									<div>
+										<div className="flex items-center gap-2">
 											<button
-												onClick={() => deactivateMember(m)}
-												className="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50 cursor-pointer"
-												title="Deactivate Member"
+												onClick={() => viewMemberHistory(m)}
+												className="text-blue-600 hover:text-blue-800 p-1 rounded hover:bg-blue-50 cursor-pointer"
+												title="View Member History"
 											>
 												<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-													<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636M5.636 18.364l12.728-12.728" />
+													<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+													<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
 												</svg>
 											</button>
-										)}
+											<button
+												onClick={() => openProgressModal(m)}
+												className="text-green-600 hover:text-green-800 p-1 rounded hover:bg-green-50 cursor-pointer"
+												title="Progress Report"
+											>
+												<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+													<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+												</svg>
+											</button>
+											{m.status === 'active' && (
+												<button
+													onClick={() => deactivateMember(m)}
+													className="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50 cursor-pointer"
+													title="Deactivate Member"
+												>
+													<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+														<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636M5.636 18.364l12.728-12.728" />
+													</svg>
+												</button>
+											)}
+											{m.status === 'active' && (
+												<button
+													onClick={() => openUpgradeModal(m)}
+													className="text-purple-600 hover:text-purple-800 p-1 rounded hover:bg-purple-50 cursor-pointer"
+													title="Upgrade Package"
+												>
+													<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+														<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11l5-5m0 0l5 5m-5-5v12" />
+													</svg>
+												</button>
+											)}
+											<button
+												onClick={() => generateQRForMember(m)}
+												className="text-blue-600 hover:text-blue-800 p-1 rounded hover:bg-blue-50 cursor-pointer"
+												title="Generate QR Code"
+											>
+												<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+													<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+												</svg>
+											</button>
+										</div>
 									</div>
-								</td>
-							</tr>
-						))}
-					</tbody>
-				</table>
-				{members?.data?.length === 0 && (
-					<div className="p-8 text-center text-gray-500">
-						No members found. Use Add Member to get started.
+								</div>
+							</div>
+						))
+					) : (
+						<div className="p-8 text-center text-gray-500">
+							{searchTerm ? 'No members found matching your search.' : 'No members found. Use Add Member to get started.'}
+						</div>
+					)}
+				</div>
+
+				{/* Search Results Info */}
+				{searchTerm && getFilteredMembers().length > 0 && (
+					<div className="px-4 py-2 bg-blue-50 border-t text-sm text-blue-700">
+						Showing {getFilteredMembers().length} of {members?.data?.length || 0} members
 					</div>
 				)}
 			</div>
@@ -330,6 +591,7 @@ export default function Members() {
 								}}>Check</button>
 							</div>
 							{error && <div className="text-red-600 text-sm md:col-span-3">{error}</div>}
+							{successMessage && <div className="text-green-600 text-sm bg-green-50 p-3 rounded border border-green-200 md:col-span-3">{successMessage}</div>}
 						</div>
 					)}
 
@@ -384,6 +646,7 @@ export default function Members() {
 								}}>Map to Gym</button>
 							</div>
 							{error && <div className="text-red-600 text-sm">{error}</div>}
+							{successMessage && <div className="text-green-600 text-sm bg-green-50 p-3 rounded border border-green-200">{successMessage}</div>}
 						</div>
 					)}
 
@@ -448,6 +711,7 @@ export default function Members() {
 								<input className="w-full border px-3 py-2 rounded bg-gray-50" value={computedExpiry} readOnly placeholder="Auto-calculated" />
 							</div>
 							{error && <div className="text-red-600 text-sm md:col-span-2">{error}</div>}
+							{successMessage && <div className="text-green-600 text-sm bg-green-50 p-3 rounded border border-green-200 md:col-span-2">{successMessage}</div>}
 						</form>
 					)}
 				</div>
@@ -797,6 +1061,178 @@ export default function Members() {
 					</div>
 				</div>
 			)}
+
+			{/* Upgrade Package Modal */}
+			{showUpgradeModal && selectedMemberForUpgrade && (
+				<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+					<div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+						<div className="p-6 border-b">
+							<div className="flex justify-between items-center">
+								<h2 className="text-xl font-semibold">
+									Upgrade Package for {selectedMemberForUpgrade.user?.name}
+								</h2>
+								<button
+									onClick={() => setShowUpgradeModal(false)}
+									className="text-gray-500 hover:text-gray-700 cursor-pointer"
+								>
+									<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+									</svg>
+								</button>
+							</div>
+						</div>
+						
+						<div className="p-6 space-y-6">
+							{/* Current Package Info */}
+							<div className="bg-gray-50 p-4 rounded-lg">
+								<h3 className="font-semibold text-gray-700 mb-2">Current Package</h3>
+								<div className="grid grid-cols-2 gap-4 text-sm">
+									<div>
+										<span className="text-gray-600">Package:</span>
+										<span className="ml-2 font-medium">{selectedMemberForUpgrade.package?.name || 'No Package'}</span>
+									</div>
+									<div>
+										<span className="text-gray-600">Fee:</span>
+										<span className="ml-2 font-medium">₹{selectedMemberForUpgrade.package?.price || selectedMemberForUpgrade.package?.fee || 0}</span>
+									</div>
+									<div>
+										<span className="text-gray-600">Duration:</span>
+										<span className="ml-2 font-medium">{selectedMemberForUpgrade.package?.duration_days || selectedMemberForUpgrade.package?.duration_months * 30 || 30} days</span>
+									</div>
+									<div>
+										<span className="text-gray-600">End Date:</span>
+										<span className="ml-2 font-medium">{selectedMemberForUpgrade.end_date}</span>
+									</div>
+								</div>
+							</div>
+
+							{/* Package Selection */}
+							<div>
+								<label className="block text-sm font-medium text-gray-700 mb-2">
+									Select New Package
+								</label>
+								<select
+									value={selectedUpgradePackage}
+									onChange={(e) => {
+										setSelectedUpgradePackage(e.target.value);
+										setUpgradeCalculations(null);
+									}}
+									className="w-full border px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+								>
+									<option value="">Choose a package...</option>
+									{packages.map(pkg => {
+										const fee = pkg.price || pkg.fee || 0;
+										const duration = pkg.duration_days || (pkg.duration_months ? pkg.duration_months * 30 : 30);
+										return (
+											<option key={pkg.id} value={pkg.id}>
+												{pkg.name} - ₹{fee} ({duration} days)
+											</option>
+										);
+									})}
+								</select>
+							</div>
+
+							{/* Calculate Button */}
+							{selectedUpgradePackage && (
+								<button
+									onClick={calculateUpgrade}
+									className="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 cursor-pointer"
+								>
+									Calculate Upgrade Cost
+								</button>
+							)}
+
+							{/* Upgrade Calculations */}
+							{upgradeCalculations && (
+								<div className="bg-blue-50 p-4 rounded-lg">
+									<h3 className="font-semibold text-blue-800 mb-3">Upgrade Calculation</h3>
+									<div className="space-y-2 text-sm">
+										<div className="flex justify-between">
+											<span>Current Package:</span>
+											<span className="font-medium">{upgradeCalculations.currentPackage}</span>
+										</div>
+										<div className="flex justify-between">
+											<span>New Package:</span>
+											<span className="font-medium">{upgradeCalculations.newPackage}</span>
+										</div>
+										<div className="flex justify-between">
+											<span>Remaining Days:</span>
+											<span className="font-medium">{upgradeCalculations.remainingDays} days</span>
+										</div>
+										<div className="flex justify-between">
+											<span>Refund Amount:</span>
+											<span className="font-medium text-green-600">₹{upgradeCalculations.refundAmount}</span>
+										</div>
+										<div className="flex justify-between">
+											<span>New Package Cost:</span>
+											<span className="font-medium">₹{upgradeCalculations.newPackageCost}</span>
+										</div>
+										<hr className="my-2" />
+										<div className="flex justify-between text-lg font-bold">
+											<span>Amount to Pay:</span>
+											<span className="text-blue-600">₹{upgradeCalculations.amountToPay}</span>
+										</div>
+										<div className="flex justify-between">
+											<span>New End Date:</span>
+											<span className="font-medium">{upgradeCalculations.newEndDate}</span>
+										</div>
+										<div className="text-xs text-gray-600 mt-2 p-2 bg-blue-100 rounded">
+											<strong>Note:</strong> Refund amount is the same for all packages because it's based on your current package's remaining value. Amount to pay changes based on the new package cost.
+										</div>
+									</div>
+								</div>
+							)}
+
+							{/* Action Buttons */}
+							<div className="flex justify-end gap-3 pt-4 border-t">
+								<button
+									onClick={() => setShowUpgradeModal(false)}
+									className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50 cursor-pointer"
+								>
+									Cancel
+								</button>
+								{upgradeCalculations && (
+									<button
+										onClick={upgradePackage}
+										className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 cursor-pointer"
+									>
+										Upgrade Package
+									</button>
+								)}
+							</div>
+						</div>
+					</div>
+				</div>
+			)}
+
+			{/* QR Scanner Modal */}
+			<QRScanner
+				isOpen={showQRScanner}
+				onScan={handleQRScan}
+				onClose={() => setShowQRScanner(false)}
+			/>
+
+			{/* QR Code Generator Modal */}
+			<QRCodeGenerator
+				isOpen={showQRGenerator}
+				memberId={selectedMemberForQR?.user?.id}
+				memberName={selectedMemberForQR?.user?.name}
+				onClose={() => {
+					setShowQRGenerator(false);
+					setSelectedMemberForQR(null);
+				}}
+			/>
+
+			{/* Payment Form Modal */}
+			<PaymentForm
+				isOpen={showPaymentForm}
+				member={scannedMember}
+				onProcessPayment={processPayment}
+				onClose={() => {
+					setShowPaymentForm(false);
+					setScannedMember(null);
+				}}
+			/>
 		</div>
 	);
 }
