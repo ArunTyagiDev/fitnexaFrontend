@@ -16,13 +16,17 @@ const environments = {
   production: {
     VITE_API_BASE_URL: 'http://shrijigroup.co.in/public/api',
     VITE_ENVIRONMENT: 'production'
+  },
+  vercel: {
+    VITE_API_BASE_URL: 'http://shrijigroup.co.in/public/api',
+    VITE_ENVIRONMENT: 'production'
   }
 };
 
 function switchEnvironment(env) {
   if (!environments[env]) {
     console.error(`❌ Invalid environment: ${env}`);
-    console.log('Available environments: local, production');
+    console.log('Available environments: local, production, vercel');
     process.exit(1);
   }
 
@@ -47,11 +51,12 @@ const targetEnv = process.argv[2];
 
 if (!targetEnv) {
   console.log('🔧 Environment Switcher');
-  console.log('Usage: node switch-env.js [local|production]');
+  console.log('Usage: node switch-env.js [local|production|vercel]');
   console.log('');
   console.log('Current configuration:');
   console.log('  Local:      http://localhost:8000/api');
   console.log('  Production: http://shrijigroup.co.in/public/api');
+  console.log('  Vercel:     http://shrijigroup.co.in/public/api');
   process.exit(0);
 }
 

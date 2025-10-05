@@ -6,8 +6,8 @@ This project supports dynamic API URL switching between local development and pr
 
 ### Automatic Detection
 The system automatically detects the environment based on:
-- **Production**: When deployed to `shrijigroup.co.in` or when `import.meta.env.PROD` is true
-- **Local**: When running on `localhost` or other local domains
+- **Production**: When deployed to `shrijigroup.co.in`, `vercel.app`, `netlify.app`, `herokuapp.com`, or when `import.meta.env.PROD` is true
+- **Local**: When running on `localhost`, `127.0.0.1`, or `192.168.x.x` domains
 
 ### Manual Configuration
 You can override the automatic detection by setting environment variables.
@@ -37,6 +37,9 @@ node switch-env.js local
 # Switch to production
 node switch-env.js production
 
+# Switch to Vercel deployment
+node switch-env.js vercel
+
 # Show current configuration
 node switch-env.js
 ```
@@ -47,6 +50,9 @@ node switch-env.js
 |-------------|---------|
 | **Local** | `http://localhost:8000/api` |
 | **Production** | `http://shrijigroup.co.in/public/api` |
+| **Vercel** | `http://shrijigroup.co.in/public/api` |
+| **Netlify** | `http://shrijigroup.co.in/public/api` |
+| **Heroku** | `http://shrijigroup.co.in/public/api` |
 
 ## 🔍 Debugging
 
@@ -130,9 +136,34 @@ export const API_BASE_URL = 'http://your-custom-api.com/api';
    - Look for failed API requests
    - Check request URLs and response status
 
+## 🚀 Vercel Deployment
+
+### Automatic Configuration
+When deployed to Vercel, the system automatically:
+- Detects `vercel.app` hostname
+- Uses production API URL: `http://shrijigroup.co.in/public/api`
+- Sets environment variables via `vercel.json`
+
+### Manual Vercel Configuration
+If automatic detection fails, you can set environment variables in Vercel dashboard:
+1. Go to your Vercel project settings
+2. Navigate to Environment Variables
+3. Add: `VITE_API_BASE_URL` = `http://shrijigroup.co.in/public/api`
+4. Add: `VITE_ENVIRONMENT` = `production`
+
+### Build for Vercel
+```bash
+# Build with Vercel configuration
+npm run build:vercel
+
+# Or use the default build (auto-detects Vercel)
+npm run build
+```
+
 ## 📝 Notes
 
 - Environment variables must start with `VITE_` to be accessible in the frontend
 - The system prioritizes explicit environment variables over automatic detection
 - Production builds automatically use the production API URL
 - Local development defaults to localhost API unless overridden
+- Vercel deployments are automatically detected and configured

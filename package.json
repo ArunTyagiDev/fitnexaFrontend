@@ -7,13 +7,16 @@
     "dev": "vite",
     "dev:local": "node switch-env.js local && vite",
     "dev:prod": "node switch-env.js production && vite",
+    "dev:vercel": "node switch-env.js vercel && vite",
     "build": "vite build",
     "build:local": "node switch-env.js local && vite build",
     "build:prod": "node switch-env.js production && vite build",
+    "build:vercel": "node switch-env.js vercel && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "env:local": "node switch-env.js local",
     "env:prod": "node switch-env.js production",
+    "env:vercel": "node switch-env.js vercel",
     "env:check": "node switch-env.js"
   },
   "dependencies": {
