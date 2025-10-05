@@ -11,8 +11,10 @@ api.interceptors.request.use((config) => {
 	const token = localStorage.getItem('token');
 	if (token) config.headers.Authorization = `Bearer ${token}`;
 	
-	// Log API requests
-	console.log(`API Request: ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
+	// Log API requests in development
+	if (!ENV_INFO.isProduction) {
+		console.log(`API Request: ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
+	}
 	
 	return config;
 }, (error) => {
@@ -23,8 +25,10 @@ api.interceptors.request.use((config) => {
 // Response interceptor
 api.interceptors.response.use(
 	(response) => {
-		// Log successful responses
-		console.log(`API Response: ${response.status} ${response.config.url}`);
+		// Log successful responses in development
+		if (!ENV_INFO.isProduction) {
+			console.log(`API Response: ${response.status} ${response.config.url}`);
+		}
 		return response;
 	},
 	(error) => {
@@ -33,7 +37,8 @@ api.interceptors.response.use(
 			url: error.config?.url,
 			status: error.response?.status,
 			message: error.message,
-			response: error.response?.data
+			response: error.response?.data,
+			environment: ENV_INFO
 		});
 		
 		// Handle specific error cases
