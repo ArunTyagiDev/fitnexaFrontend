@@ -49,10 +49,10 @@ node switch-env.js
 | Environment | API URL |
 |-------------|---------|
 | **Local** | `http://localhost:8000/api` |
-| **Production** | `http://shrijigroup.co.in/public/api` |
-| **Vercel** | `http://shrijigroup.co.in/public/api` |
-| **Netlify** | `http://shrijigroup.co.in/public/api` |
-| **Heroku** | `http://shrijigroup.co.in/public/api` |
+| **Production** | `https://shrijigroup.co.in/public/api` |
+| **Vercel** | `https://shrijigroup.co.in/public/api` |
+| **Netlify** | `https://shrijigroup.co.in/public/api` |
+| **Heroku** | `https://shrijigroup.co.in/public/api` |
 
 ## 🔍 Debugging
 
@@ -141,14 +141,14 @@ export const API_BASE_URL = 'http://your-custom-api.com/api';
 ### Automatic Configuration
 When deployed to Vercel, the system automatically:
 - Detects `vercel.app` hostname
-- Uses production API URL: `http://shrijigroup.co.in/public/api`
+- Uses production API URL: `https://shrijigroup.co.in/public/api`
 - Sets environment variables via `vercel.json`
 
 ### Manual Vercel Configuration
 If automatic detection fails, you can set environment variables in Vercel dashboard:
 1. Go to your Vercel project settings
 2. Navigate to Environment Variables
-3. Add: `VITE_API_BASE_URL` = `http://shrijigroup.co.in/public/api`
+3. Add: `VITE_API_BASE_URL` = `https://shrijigroup.co.in/public/api`
 4. Add: `VITE_ENVIRONMENT` = `production`
 
 ### Build for Vercel

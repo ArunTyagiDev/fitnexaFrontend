@@ -19,7 +19,7 @@ const getApiBaseUrl = () => {
   
   // Default URLs based on environment
   if (isProduction) {
-    return 'http://shrijigroup.co.in/public/api';
+    return 'https://shrijigroup.co.in/public/api';
   } else {
     return 'http://localhost:8000/api';
   }

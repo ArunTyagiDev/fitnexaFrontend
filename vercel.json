@@ -1,12 +1,12 @@
 {
   "build": {
     "env": {
-      "VITE_API_BASE_URL": "http://shrijigroup.co.in/public/api",
+      "VITE_API_BASE_URL": "https://shrijigroup.co.in/public/api",
       "VITE_ENVIRONMENT": "production"
     }
   },
   "env": {
-    "VITE_API_BASE_URL": "http://shrijigroup.co.in/public/api",
+    "VITE_API_BASE_URL": "https://shrijigroup.co.in/public/api",
     "VITE_ENVIRONMENT": "production"
   }
 }
