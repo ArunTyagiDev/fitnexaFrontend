@@ -5,9 +5,16 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:local": "node switch-env.js local && vite",
+    "dev:prod": "node switch-env.js production && vite",
     "build": "vite build",
+    "build:local": "node switch-env.js local && vite build",
+    "build:prod": "node switch-env.js production && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "env:local": "node switch-env.js local",
+    "env:prod": "node switch-env.js production",
+    "env:check": "node switch-env.js"
   },
   "dependencies": {
     "@ckeditor/ckeditor5-build-classic": "^41.4.2",
