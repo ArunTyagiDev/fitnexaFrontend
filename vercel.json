@@ -1,4 +1,7 @@
 {
+  "buildCommand": "npm run build:vercel",
+  "outputDirectory": "dist",
+  "framework": "vite",
   "build": {
     "env": {
       "VITE_API_BASE_URL": "https://shrijigroup.co.in/public/api",
@@ -8,5 +11,11 @@
   "env": {
     "VITE_API_BASE_URL": "https://shrijigroup.co.in/public/api",
     "VITE_ENVIRONMENT": "production"
-  }
+  },
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
 }
