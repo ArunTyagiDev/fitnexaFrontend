@@ -31,11 +31,11 @@ export default function Login() {
 				{error && <p className="text-red-600 text-sm">{error}</p>}
 				<div>
 					<label className="block text-sm mb-1">Email</label>
-					<input className="w-full border rounded px-3 py-2" value={email} onChange={e=>setEmail(e.target.value)} />
+					<input className="w-full border rounded px-3 py-2"  onChange={e=>setEmail(e.target.value)} />
 				</div>
 				<div>
 					<label className="block text-sm mb-1">Password</label>
-					<input type="password" className="w-full border rounded px-3 py-2" value={password} onChange={e=>setPassword(e.target.value)} />
+					<input type="password" className="w-full border rounded px-3 py-2"  onChange={e=>setPassword(e.target.value)} />
 				</div>
 				<button disabled={loading} className="w-full bg-blue-600 text-white py-2 rounded disabled:opacity-50">
 					{loading ? 'Signing in...' : 'Sign in'}

@@ -11,7 +11,7 @@ export default function PaymentForm() {
 	const [packages, setPackages] = useState([]);
 	const [userSearch, setUserSearch] = useState('');
 	const [showUserDropdown, setShowUserDropdown] = useState(false);
-	const [form, setForm] = useState({ membership_id: '', amount: '', status: 'paid', due_date: '', paid_at: '' });
+	const [form, setForm] = useState({ membership_id: '', amount: '', status: 'paid', payment_method: 'cash', due_date: '', paid_at: '' });
 	const [message, setMessage] = useState('');
 	
 	// Filters
@@ -126,7 +126,7 @@ export default function PaymentForm() {
 		e.preventDefault();
 		await api.post('/owner/payments', { ...form, amount: Number(form.amount) });
 		setMessage('Payment recorded');
-		setForm({ membership_id: '', amount: '', status: 'paid', due_date: '', paid_at: '' });
+		setForm({ membership_id: '', amount: '', status: 'paid', payment_method: 'cash', due_date: '', paid_at: '' });
 		setUserSearch('');
 		setMemberships([]);
 		setShowAddModal(false);
@@ -213,6 +213,7 @@ export default function PaymentForm() {
 								<th className="p-4 font-medium">User Name</th>
 								<th className="p-4 font-medium">Package</th>
 								<th className="p-4 font-medium">Amount (₹)</th>
+								<th className="p-4 font-medium">Payment Method</th>
 								<th className="p-4 font-medium">Payment Date</th>
 								<th className="p-4 font-medium">Status</th>
 							</tr>
@@ -223,6 +224,9 @@ export default function PaymentForm() {
 									<td className="p-4 font-medium">{payment.membership?.user?.name || 'N/A'}</td>
 									<td className="p-4">{payment.membership?.package?.name || 'No Package'}</td>
 									<td className="p-4 font-medium">₹{payment.amount}</td>
+									<td className="p-4">
+										<span className="capitalize">{payment.payment_method?.replace('_', ' ') || 'N/A'}</span>
+									</td>
 									<td className="p-4">{payment.paid_at || payment.due_date || 'N/A'}</td>
 									<td className="p-4">
 										<span className={`px-3 py-1 rounded-full text-xs font-medium ${
@@ -319,22 +323,32 @@ export default function PaymentForm() {
 							/>
 						</div>
 						<div>
+							<label className="block text-sm mb-1">Payment Method</label>
+							<select className="w-full border px-3 py-2 rounded" value={form.payment_method} onChange={e=>setField('payment_method', e.target.value)} required>
+								<option value="cash">Cash</option>
+								<option value="card">Card</option>
+								<option value="upi">UPI</option>
+								<option value="bank_transfer">Bank Transfer</option>
+								<option value="online">Online</option>
+							</select>
+						</div>
+					</div>
+					<div className="grid grid-cols-2 gap-4">
+						<div>
 							<label className="block text-sm mb-1">Status</label>
 							<select className="w-full border px-3 py-2 rounded" value={form.status} onChange={e=>setField('status', e.target.value)}>
 								<option value="paid">Paid</option>
 								<option value="pending">Pending</option>
 							</select>
 						</div>
-					</div>
-					<div className="grid grid-cols-2 gap-4">
-						<div>
-							<label className="block text-sm mb-1">Due Date</label>
-							<input type="date" className="w-full border px-3 py-2 rounded" value={form.due_date} onChange={e=>setField('due_date', e.target.value)} />
-						</div>
 						<div>
 							<label className="block text-sm mb-1">Paid At</label>
 							<input type="date" className="w-full border px-3 py-2 rounded" value={form.paid_at} onChange={e=>setField('paid_at', e.target.value)} />
 						</div>
+					</div>
+					<div>
+						<label className="block text-sm mb-1">Due Date (optional)</label>
+						<input type="date" className="w-full border px-3 py-2 rounded" value={form.due_date} onChange={e=>setField('due_date', e.target.value)} />
 					</div>
 				</form>
 			</Modal>
