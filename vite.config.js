@@ -8,9 +8,17 @@ export default defineConfig({
     outDir: 'dist',
     assetsDir: 'assets',
     sourcemap: false,
+    chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
-        manualChunks: undefined
+        manualChunks: {
+          // Vendor chunks
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'ui-vendor': ['@ckeditor/ckeditor5-react', '@ckeditor/ckeditor5-build-classic'],
+          'qr-vendor': ['qr-scanner', 'qrcode'],
+          'charts-vendor': ['recharts'],
+          'http-vendor': ['axios']
+        }
       }
     }
   },

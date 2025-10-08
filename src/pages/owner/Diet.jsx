@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, lazy, Suspense } from 'react';
 import api from '../../lib/api';
 import Modal from '../../components/Modal';
-import { CKEditor } from '@ckeditor/ckeditor5-react';
-import ClassicEditor from '@ckeditor/ckeditor5-build-classic';
+
+// Lazy load CKEditor to reduce initial bundle size
+const CKEditor = lazy(() => import('@ckeditor/ckeditor5-react').then(module => ({ default: module.CKEditor })));
+const ClassicEditor = lazy(() => import('@ckeditor/ckeditor5-build-classic'));
 
 const DIET_CATEGORIES = [
 	'Weight Loss',
@@ -286,38 +288,42 @@ export default function DietForm() {
 					</div>
 					<div>
 						<label className="block text-sm mb-1">Description</label>
-						<CKEditor
-							editor={ClassicEditor}
-							data={form.description}
-							onReady={editor => {
-								// You can store the "editor" and use when it is needed.
-								console.log('Editor is ready to use!', editor);
-							}}
-							onChange={(event, editor) => {
-								const data = editor.getData();
-								setField('description', data);
-							}}
-							config={{
-								toolbar: ['heading', '|', 'bold', 'italic', 'bulletedList', 'numberedList', 'link', 'blockQuote']
-							}}
-						/>
+						<Suspense fallback={<div className="w-full h-32 border rounded bg-gray-100 flex items-center justify-center">Loading editor...</div>}>
+							<CKEditor
+								editor={ClassicEditor}
+								data={form.description}
+								onReady={editor => {
+									// You can store the "editor" and use when it is needed.
+									console.log('Editor is ready to use!', editor);
+								}}
+								onChange={(event, editor) => {
+									const data = editor.getData();
+									setField('description', data);
+								}}
+								config={{
+									toolbar: ['heading', '|', 'bold', 'italic', 'bulletedList', 'numberedList', 'link', 'blockQuote']
+								}}
+							/>
+						</Suspense>
 					</div>
 					<div>
 						<label className="block text-sm mb-1">Meal Plan</label>
-						<CKEditor
-							editor={ClassicEditor}
-							data={form.meals}
-							onReady={editor => {
-								console.log('Meal Plan Editor is ready!', editor);
-							}}
-							onChange={(event, editor) => {
-								const data = editor.getData();
-								setField('meals', data);
-							}}
-							config={{
-								toolbar: ['heading', '|', 'bold', 'italic', 'bulletedList', 'numberedList', 'link', 'blockQuote']
-							}}
-						/>
+						<Suspense fallback={<div className="w-full h-32 border rounded bg-gray-100 flex items-center justify-center">Loading editor...</div>}>
+							<CKEditor
+								editor={ClassicEditor}
+								data={form.meals}
+								onReady={editor => {
+									console.log('Meal Plan Editor is ready!', editor);
+								}}
+								onChange={(event, editor) => {
+									const data = editor.getData();
+									setField('meals', data);
+								}}
+								config={{
+									toolbar: ['heading', '|', 'bold', 'italic', 'bulletedList', 'numberedList', 'link', 'blockQuote']
+								}}
+							/>
+						</Suspense>
 					</div>
 				</form>
 			</Modal>
