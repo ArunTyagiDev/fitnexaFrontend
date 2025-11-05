@@ -19,11 +19,11 @@ const environments = {
     VITE_ENVIRONMENT: 'local'
   },
   production: {
-    VITE_API_BASE_URL: 'https://shrijigroup.co.in/public/api',
+    VITE_API_BASE_URL: 'https://api.aruntyagi.com/api',
     VITE_ENVIRONMENT: 'production'
   },
   vercel: {
-    VITE_API_BASE_URL: 'https://shrijigroup.co.in/public/api',
+    VITE_API_BASE_URL: 'https://api.aruntyagi.com//api',
     VITE_ENVIRONMENT: 'production'
   }
 };
@@ -60,8 +60,8 @@ if (!targetEnv) {
   console.log('');
   console.log('Current configuration:');
   console.log('  Local:      http://localhost:8000/api');
-  console.log('  Production: https://shrijigroup.co.in/public/api');
-  console.log('  Vercel:     https://shrijigroup.co.in/public/api');
+  console.log('  Production: https://api.aruntyagi.com/api');
+  console.log('  Vercel:     https://api.aruntyagi.com//api');
   process.exit(0);
 }
 

@@ -84,7 +84,10 @@ export default function AddRevenue() {
     return (
         <div className="p-6 max-w-2xl mx-auto">
             <div className="bg-white rounded shadow p-6">
-                <h1 className="text-2xl font-semibold mb-6">Add Revenue Entry</h1>
+                <div className="flex items-center justify-between mb-6">
+                    <h1 className="text-2xl font-semibold">Add Revenue Entry</h1>
+                    <a href="/owner/financial" className="px-4 py-2 rounded border hover:bg-gray-50 cursor-pointer">Back to Financial Dashboard</a>
+                </div>
                 
                 {/* Auto-generated Revenue Notice */}
                 <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-6">

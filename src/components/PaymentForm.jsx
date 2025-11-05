@@ -126,7 +126,6 @@ const PaymentForm = ({ member, onProcessPayment, onClose, isOpen }) => {
             >
               <option value="paid">Paid</option>
               <option value="pending">Pending</option>
-              <option value="failed">Failed</option>
             </select>
           </div>
 

@@ -11,7 +11,7 @@ export default function PaymentForm() {
 	const [packages, setPackages] = useState([]);
 	const [userSearch, setUserSearch] = useState('');
 	const [showUserDropdown, setShowUserDropdown] = useState(false);
-	const [form, setForm] = useState({ membership_id: '', amount: '', status: 'paid', payment_method: 'cash', due_date: '', paid_at: '' });
+	const [form, setForm] = useState({ membership_id: '', amount: '', status: 'paid', payment_method: 'cash', due_date: '', paid_at: new Date().toISOString().slice(0,10) });
 	const [message, setMessage] = useState('');
 	
 	// Filters
@@ -101,12 +101,21 @@ export default function PaymentForm() {
 
 	function setField(k, v) { setForm(prev => ({ ...prev, [k]: v })); }
 
-	function selectUser(user) {
+async function selectUser(user) {
+	setUserSearch(user.name);
+	setShowUserDropdown(false);
+	const data = await loadUserMemberships(user.id);
+	if (data && data.length > 0) {
+		const first = data[0];
+		setForm(prev => ({
+			...prev,
+			membership_id: String(first.id),
+			amount: first.package?.price ? String(first.package.price) : prev.amount
+		}));
+	} else {
 		setForm(prev => ({ ...prev, membership_id: '' }));
-		setUserSearch(user.name);
-		setShowUserDropdown(false);
-		loadUserMemberships(user.id);
 	}
+}
 
 	function handleUserSearchChange(e) {
 		setUserSearch(e.target.value);
@@ -117,10 +126,11 @@ export default function PaymentForm() {
 		}
 	}
 
-	async function loadUserMemberships(userId) {
-		const { data } = await api.get(`/owner/users/${userId}/memberships`);
-		setMemberships(data);
-	}
+async function loadUserMemberships(userId) {
+	const { data } = await api.get(`/owner/users/${userId}/memberships`);
+	setMemberships(data);
+	return data;
+}
 
 	async function submit(e) {
 		e.preventDefault();
@@ -300,7 +310,14 @@ export default function PaymentForm() {
 					</div>
 					<div>
 						<label className="block text-sm mb-1">Membership</label>
-						<select className="w-full border px-3 py-2 rounded" value={form.membership_id} onChange={e=>setField('membership_id', e.target.value)} required>
+			<select className="w-full border px-3 py-2 rounded" value={form.membership_id} onChange={e=>{
+				const val = e.target.value;
+				setField('membership_id', val);
+				const selected = memberships.find(m => String(m.id) === String(val));
+				if (selected) {
+					setField('amount', selected.package?.price ? String(selected.package.price) : '');
+				}
+			}} required>
 							<option value="">Select Membership</option>
 							{memberships.map(membership => (
 								<option key={membership.id} value={membership.id}>

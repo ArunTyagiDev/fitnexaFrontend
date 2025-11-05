@@ -95,7 +95,10 @@ export default function AddExpense() {
     return (
         <div className="p-6 max-w-2xl mx-auto">
             <div className="bg-white rounded shadow p-6">
-                <h1 className="text-2xl font-semibold mb-6">Add Expense Entry</h1>
+                <div className="flex items-center justify-between mb-6">
+                    <h1 className="text-2xl font-semibold">Add Expense Entry</h1>
+                    <a href="/owner/financial" className="px-4 py-2 rounded border hover:bg-gray-50 cursor-pointer">Back to Financial Dashboard</a>
+                </div>
                 
                 <form onSubmit={handleSubmit} className="space-y-6">
                     {/* Gym Selection */}

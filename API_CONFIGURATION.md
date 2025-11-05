@@ -6,7 +6,7 @@ This project supports dynamic API URL switching between local development and pr
 
 ### Automatic Detection
 The system automatically detects the environment based on:
-- **Production**: When deployed to `shrijigroup.co.in`, `vercel.app`, `netlify.app`, `herokuapp.com`, or when `import.meta.env.PROD` is true
+- **Production**: When deployed to `api.aruntyagi.com`, `vercel.app`, `netlify.app`, `herokuapp.com`, or when `import.meta.env.PROD` is true
 - **Local**: When running on `localhost`, `127.0.0.1`, or `192.168.x.x` domains
 
 ### Manual Configuration
@@ -49,10 +49,10 @@ node switch-env.js
 | Environment | API URL |
 |-------------|---------|
 | **Local** | `http://localhost:8000/api` |
-| **Production** | `https://shrijigroup.co.in/public/api` |
-| **Vercel** | `https://shrijigroup.co.in/public/api` |
-| **Netlify** | `https://shrijigroup.co.in/public/api` |
-| **Heroku** | `https://shrijigroup.co.in/public/api` |
+| **Production** | `https://api.aruntyagi.com/api` |
+| **Vercel** | `https://api.aruntyagi.com/api` |
+| **Netlify** | `https://api.aruntyagi.com/api` |
+| **Heroku** | `https://api.aruntyagi.com/api` |
 
 ## 🔍 Debugging
 
@@ -82,7 +82,7 @@ VITE_API_BASE_URL=http://localhost:8000/api
 VITE_ENVIRONMENT=local
 
 # Force production API
-VITE_API_BASE_URL=http://shrijigroup.co.in/public/api
+VITE_API_BASE_URL=https://api.aruntyagi.com/api
 VITE_ENVIRONMENT=production
 ```
 
@@ -125,7 +125,7 @@ export const API_BASE_URL = 'http://your-custom-api.com/api';
 2. **Test API Connection**
    ```javascript
    // Test API endpoint
-   fetch('http://shrijigroup.co.in/public/api/health')
+   fetch('https://api.aruntyagi.com/api/health')
      .then(response => console.log('API Status:', response.status))
      .catch(error => console.error('API Error:', error));
    ```
@@ -141,14 +141,14 @@ export const API_BASE_URL = 'http://your-custom-api.com/api';
 ### Automatic Configuration
 When deployed to Vercel, the system automatically:
 - Detects `vercel.app` hostname
-- Uses production API URL: `https://shrijigroup.co.in/public/api`
+- Uses production API URL: `https://api.aruntyagi.com/api`
 - Sets environment variables via `vercel.json`
 
 ### Manual Vercel Configuration
 If automatic detection fails, you can set environment variables in Vercel dashboard:
 1. Go to your Vercel project settings
 2. Navigate to Environment Variables
-3. Add: `VITE_API_BASE_URL` = `https://shrijigroup.co.in/public/api`
+3. Add: `VITE_API_BASE_URL` = `https://api.aruntyagi.com/api`
 4. Add: `VITE_ENVIRONMENT` = `production`
 
 ### Build for Vercel

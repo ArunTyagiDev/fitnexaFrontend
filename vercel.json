@@ -4,12 +4,12 @@
   "framework": "vite",
   "build": {
     "env": {
-      "VITE_API_BASE_URL": "https://shrijigroup.co.in/public/api",
+      "VITE_API_BASE_URL": "https://api.aruntyagi.com//api",
       "VITE_ENVIRONMENT": "production"
     }
   },
   "env": {
-    "VITE_API_BASE_URL": "https://shrijigroup.co.in/public/api",
+    "VITE_API_BASE_URL": "https://api.aruntyagi.com//api",
     "VITE_ENVIRONMENT": "production"
   },
   "rewrites": [

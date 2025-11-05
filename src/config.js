@@ -5,24 +5,9 @@ const getApiBaseUrl = () => {
   if (envApiUrl) {
     return envApiUrl;
   }
-  
-  // Check if we're in production environment
-  const hostname = window.location.hostname;
-  const isProduction = import.meta.env.PROD || 
-                      hostname === 'shrijigroup.co.in' ||
-                      hostname.includes('shrijigroup.co.in') ||
-                      hostname === 'fitnexa.vercel.app' ||
-                      hostname.includes('vercel.app') ||
-                      hostname.includes('netlify.app') ||
-                      hostname.includes('herokuapp.com') ||
-                      hostname !== 'localhost' && !hostname.includes('127.0.0.1') && !hostname.includes('192.168.');
-  
-  // Default URLs based on environment
-  if (isProduction) {
-    return 'https://shrijigroup.co.in/public/api';
-  } else {
-    return 'http://localhost:8000/api';
-  }
+
+  // Default to the provided production API for all environments unless overridden by Vite env
+  return 'https://api.aruntyagi.com/api';
 };
 
 export const API_BASE_URL = getApiBaseUrl();

@@ -10,7 +10,7 @@ export default function Owners() {
 	const [name, setName] = useState('');
 	const [email, setEmail] = useState('');
 	const [showAdd, setShowAdd] = useState(false);
-	const [addForm, setAddForm] = useState({ name: '', email: '', password: 'password123', subscription_plan: 'Pro', subscription_expires_at: '' });
+    const [addForm, setAddForm] = useState({ name: '', email: '', password: 'password123', subscription_plan: 'Pro', subscription_expires_at: '', gym_name: '', gym_code: '' });
 
 	async function load(p = 1) {
 		const { data } = await api.get('/super/owners', { params: { page: p, search } });
@@ -32,8 +32,8 @@ export default function Owners() {
 	async function addOwner(e) {
 		e.preventDefault();
 		await api.post('/super/register-owner', addForm);
-		setShowAdd(false);
-		setAddForm({ name: '', email: '', password: 'password123', subscription_plan: 'Pro', subscription_expires_at: '' });
+        setShowAdd(false);
+        setAddForm({ name: '', email: '', password: 'password123', subscription_plan: 'Pro', subscription_expires_at: '', gym_name: '', gym_code: '' });
 		load(1);
 	}
 
@@ -90,11 +90,15 @@ export default function Owners() {
 				</div>
 			)}
 			{showAdd && (
-				<form onSubmit={addOwner} className="bg-white p-4 rounded shadow space-y-3 max-w-md">
+                <form onSubmit={addOwner} className="bg-white p-4 rounded shadow space-y-3 max-w-md">
 					<h2 className="font-semibold">Add Gym Owner</h2>
 					<input className="border px-3 py-2 rounded w-full" placeholder="Name" value={addForm.name} onChange={e=>setAdd('name', e.target.value)} />
 					<input className="border px-3 py-2 rounded w-full" placeholder="Email" value={addForm.email} onChange={e=>setAdd('email', e.target.value)} />
 					<input type="password" className="border px-3 py-2 rounded w-full" placeholder="Password" value={addForm.password} onChange={e=>setAdd('password', e.target.value)} />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <input className="border px-3 py-2 rounded w-full" placeholder="Gym Name" value={addForm.gym_name} onChange={e=>setAdd('gym_name', e.target.value)} />
+                        <input className="border px-3 py-2 rounded w-full" placeholder="Gym ID" value={addForm.gym_code} onChange={e=>setAdd('gym_code', e.target.value)} />
+                    </div>
 					<input type="date" className="border px-3 py-2 rounded w-full" placeholder="Subscription Expires" value={addForm.subscription_expires_at} onChange={e=>setAdd('subscription_expires_at', e.target.value)} />
 					<select className="border px-3 py-2 rounded w-full" value={addForm.subscription_plan} onChange={e=>setAdd('subscription_plan', e.target.value)}>
 						<option>Pro</option>

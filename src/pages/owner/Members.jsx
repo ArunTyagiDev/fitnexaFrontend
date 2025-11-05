@@ -113,6 +113,17 @@ export default function Members() {
 		);
 	}
 
+	function formatDate(d) {
+		if (!d) return '-';
+		try {
+			const [y,m,day] = String(d).split('-');
+			if (y && m && day) return `${day}/${m}/${y}`;
+			const dd = new Date(d);
+			if (Number.isNaN(dd.getTime())) return d;
+			return dd.toLocaleDateString('en-GB');
+		} catch { return d; }
+	}
+
 	async function addMember(e) {
 		e?.preventDefault?.();
 		setError('');
@@ -135,6 +146,20 @@ export default function Members() {
 			await load();
 		} catch (err) {
 			setError(err?.response?.data?.message || 'Failed to add');
+		}
+	}
+
+	async function reactivate(m) {
+		try {
+			await api.put(`/owner/memberships/${m.id}/reactivate`, {
+				package_id: m.package?.id || undefined,
+				start_date: new Date().toISOString().slice(0,10)
+			});
+			setSuccessMessage(`Member ${m.user?.name || ''} reactivated successfully`);
+			setTimeout(() => setSuccessMessage(''), 4000);
+			await load();
+		} catch (err) {
+			setError(err?.response?.data?.message || 'Failed to reactivate');
 		}
 	}
 
@@ -446,13 +471,13 @@ export default function Members() {
 			{error && <div className="text-red-600 text-sm">{error}</div>}
 			{successMessage && <div className="text-green-600 text-sm bg-green-50 p-3 rounded border border-green-200">{successMessage}</div>}
 
-			<div className="bg-white rounded shadow">
+				<div className="bg-white rounded shadow">
 				{/* Table Header - Fixed */}
-				<div className="bg-gray-50 px-4 py-3 border-b">
-					<div className="grid grid-cols-8 gap-4 text-sm font-medium text-gray-700">
-						<div>Name</div>
-						<div>Email</div>
-						<div>Phone</div>
+					<div className="bg-gray-50 px-4 py-3 border-b">
+						<div className="grid grid-cols-8 gap-4 text-sm font-medium text-gray-700">
+							<div>Name</div>
+							<div className="truncate">Email</div>
+							<div className="truncate">Phone</div>
 						<div>Package</div>
 						<div>Status</div>
 						<div>Start Date</div>
@@ -462,14 +487,18 @@ export default function Members() {
 				</div>
 
 				{/* Table Body - Scrollable */}
-				<div className="max-h-96 overflow-y-auto">
+					<div className="max-h-96 overflow-y-auto">
 					{getFilteredMembers().length > 0 ? (
 						getFilteredMembers().map(m => (
 							<div key={m.id} className="border-b hover:bg-gray-50 px-4 py-3">
 								<div className="grid grid-cols-8 gap-4 text-sm items-center">
 									<div className="font-medium">{m.user?.name}</div>
-									<div className="text-gray-600">{m.user?.email || '-'}</div>
-									<div className="text-gray-600">{m.user?.phone || '-'}</div>
+									<div className="text-gray-600 truncate" title={m.user?.email || ''}>
+										{m.user?.email || '-'}
+									</div>
+									<div className="text-gray-600 truncate" title={m.user?.phone || ''}>
+										{m.user?.phone || '-'}
+									</div>
 									<div className="text-gray-600">{m.package?.name || 'No Package'}</div>
 									<div>
 										<span className={`px-2 py-1 rounded text-xs ${
@@ -480,8 +509,8 @@ export default function Members() {
 											{m.status}
 										</span>
 									</div>
-									<div className="text-gray-600">{m.start_date}</div>
-									<div className="text-gray-600">{m.end_date}</div>
+									<div className="text-gray-600">{formatDate(m.start_date)}</div>
+									<div className="text-gray-600">{formatDate(m.end_date)}</div>
 									<div>
 										<div className="flex items-center gap-2">
 											<button
@@ -503,7 +532,7 @@ export default function Members() {
 													<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
 												</svg>
 											</button>
-											{m.status === 'active' && (
+										{m.status === 'active' && (
 												<button
 													onClick={() => deactivateMember(m)}
 													className="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50 cursor-pointer"
@@ -514,6 +543,17 @@ export default function Members() {
 													</svg>
 												</button>
 											)}
+										{m.status === 'expired' && (
+											<button
+												onClick={() => reactivate(m)}
+												className="text-green-700 hover:text-green-900 p-1 rounded hover:bg-green-50 cursor-pointer"
+												title="Reactivate Member"
+											>
+												<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+													<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582M20 20v-5h-.581M5.41 9A7 7 0 0119 12m0 0a7 7 0 01-13.59 3" />
+												</svg>
+											</button>
+										)}
 											{m.status === 'active' && (
 												<button
 													onClick={() => openUpgradeModal(m)}
@@ -662,10 +702,10 @@ export default function Members() {
 									))}
 								</select>
 							</div>
-							<div>
-								<label className="block text-sm mb-1">Mobile Number</label>
-								<input className="w-full border px-3 py-2 rounded" value={form.phone} onChange={e=>setField('phone', e.target.value)} required />
-							</div>
+								<div>
+									<label className="block text-sm mb-1">Mobile Number</label>
+									<input className="w-full border px-3 py-2 rounded" value={form.phone} onChange={e=>setField('phone', e.target.value)} required maxLength={10} pattern="\d{10}" title="Enter 10 digit mobile number" />
+								</div>
 							<div>
 								<label className="block text-sm mb-1">Name</label>
 								<input className="w-full border px-3 py-2 rounded" value={form.name} onChange={e=>setField('name', e.target.value)} required />
@@ -700,6 +740,9 @@ export default function Members() {
 									onChange={e=>setField('password', e.target.value)} 
 									placeholder="Set member password"
 									required 
+									minLength={8}
+									pattern="(?=.*[0-9])(?=.*[^A-Za-z0-9]).{8,}"
+									title="At least 8 chars, include a number and a special symbol"
 								/>
 							</div>
 							<div>
