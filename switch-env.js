@@ -23,7 +23,7 @@ const environments = {
     VITE_ENVIRONMENT: 'production'
   },
   vercel: {
-    VITE_API_BASE_URL: 'https://api.aruntyagi.com//api',
+    VITE_API_BASE_URL: 'https://api.aruntyagi.com/api',
     VITE_ENVIRONMENT: 'production'
   }
 };
@@ -61,7 +61,7 @@ if (!targetEnv) {
   console.log('Current configuration:');
   console.log('  Local:      http://localhost:8000/api');
   console.log('  Production: https://api.aruntyagi.com/api');
-  console.log('  Vercel:     https://api.aruntyagi.com//api');
+  console.log('  Vercel:     https://api.aruntyagi.com/api');
   process.exit(0);
 }
 
